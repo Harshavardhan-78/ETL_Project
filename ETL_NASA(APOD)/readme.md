@@ -1,7 +1,5 @@
 
 
----
-
 # 🚀 NASA APOD ETL Pipeline – Project Description
 
 This project implements a complete **ETL (Extract–Transform–Load)** pipeline that collects NASA's **Astronomy Picture of the Day (APOD)** data, processes it into a structured format, and loads it into a **Supabase PostgreSQL database** for analytics or dashboarding.
@@ -117,6 +115,5 @@ This ETL pipeline provides:
 * Database-ready output for analytics
 * Reproducible and maintainable architecture
 
-Perfect for learning ETL concepts, building dashboards, or powering a data portfolio project.
 
 ---
