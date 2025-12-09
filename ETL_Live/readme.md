@@ -1,118 +1,195 @@
-# 🚀 NASA APOD ETL Pipeline – Project Description
+Below is a clean **README.md** you can use for your ETL Weather Pipeline.
+It is fully aligned with your files:
 
-This project implements a complete **ETL (Extract–Transform–Load)** pipeline that collects NASA's **Astronomy Picture of the Day (APOD)** data, processes it into a structured format, and loads it into a **Supabase PostgreSQL database** for analytics or dashboarding.
 
-The pipeline is designed to be modular, production-friendly, and easy to automate (cron, Airflow, GitHub Actions, etc.).
+# **Weather ETL Pipeline using Open-Meteo API & Supabase**
 
----
-
-## 🔍 **📌 1. Extract – Fetch Daily NASA APOD Data**
-
-The **Extract.py** script connects to the NASA APOD API using an API key stored in `.env`.
-
-It performs the following:
-
-* Sends a request to NASA APOD endpoint
-* Saves the JSON response into
-  **`Data/raw/`** as a timestamped file
-  Example:
-
-  ```
-  apod_251209_135202.json
-  ```
-* Downloads the APOD image (if available)
-* Ensures reproducibility by storing raw responses without modification
-
-This step guarantees that all raw API responses are archived for auditing or reprocessing.
+This project implements a complete **ETL (Extract–Transform–Load) pipeline** for weather data using the **Open-Meteo API**, processing hourly weather metrics for Hyderabad and inserting them into a **Supabase PostgreSQL database**.
 
 ---
 
-## 🔧 **📌 2. Transform – Clean and Structure the Data**
-
-The **Transform.py** script reads the latest raw JSON file and converts it into a clean, tabular format suitable for database insertion.
-
-Key transformations include:
-
-* Normalizing JSON keys to a consistent schema
-* Cleaning and validating dates
-* Generating a uniform `inserted_at` timestamp
-* Handling missing fields gracefully
-* Producing a CSV file stored in:
-  **`Data/Staged/nasa_apod_staged.csv`**
-
-This ensures the data is standardized and ready for loading.
-
----
-
-## 🛢️ **📌 3. Load – Insert Into Supabase Database**
-
-The **Load.py** script loads the transformed CSV into a Supabase PostgreSQL table named `nasa_apod`.
-
-Operations performed:
-
-* Reads the staged CSV file
-* Converts NaN → NULL for database compatibility
-* Formats dates and timestamps
-* Inserts records in batches to avoid rate limits
-* Logs progress and errors for transparency
-
-The final table structure is:
-
-```sql
-CREATE TABLE nasa_apod (
-    id SERIAL PRIMARY KEY,
-    date DATE NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    explanation TEXT NOT NULL,
-    media_type VARCHAR(50),
-    image_url TEXT,
-    inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-This enables running analytics, dashboards, or machine learning using APOD metadata.
-
----
-
-## 📁 **Project Structure**
+# 📌 **Pipeline Overview**
 
 ```
-ETL_NASA/
-│
-├── Data/
-│   ├── raw/          ← Raw JSON API responses
-│   ├── Staged/       ← Cleaned CSV output
+Extract → Transform → Load → Supabase
+```
+
+### ✔ Extract
+
+Fetch hourly weather data from **Open-Meteo API** and store it as raw JSON.
+
+### ✔ Transform
+
+Clean, standardize, and convert the JSON into a tabular CSV.
+
+### ✔ Load
+
+Insert final clean weather data into the **weather_data** table in Supabase.
+
+---
+
+# 📁 **Project Folder Structure**
+
+```
+ETL_Weather/
 │
 ├── Scripts/
-│   ├── Extract.py    ← Fetches NASA APOD + images
-│   ├── Transform.py  ← Converts JSON → structured CSV
-│   ├── Load.py       ← Loads data into Supabase
+│   ├── Extractweather.py        # Extract step
+│   ├── Tr_weather.py            # Transform step
+│   └── Loadweather.py           # Load step
 │
-├── .env              ← API keys (NASA + Supabase)
+├── data/
+│   ├── raw/                     # Raw JSON files (extracted)
+│   └── staged/                  # Clean CSV (transformed)
+│
 └── README.md
 ```
 
 ---
 
-## 🧪 **Run the Pipeline**
+# 🔍 **1. Extract Step**
 
-```bash
-python Scripts/Extract.py
-python Scripts/Transform.py
-python Scripts/Load.py
+### File: `Extractweather.py`
+
+Extracts live weather data from Open-Meteo API.
+
+Uses:
+
+* temperature
+* humidity
+* wind speed
+* timestamps
+
+Each run saves a file like:
+
+```
+data/raw/weather_YYMMDD_HHMMSS.json
+```
+
+Sample raw file: 
+
+---
+
+# 🔄 **2. Transform Step**
+
+### File: `Tr_weather.py`
+
+Transforms the **latest** raw JSON file into a clean DataFrame.
+
+Source fields → Target fields:
+
+| Raw Key               | Final Column      |
+| --------------------- | ----------------- |
+| temperature_2m        | temperature_c     |
+| relative_humidity_2m  | humidity_percent  |
+| wind_speed_10m        | wind_speed_kmph   |
+| time                  | time              |
+| + city added manually | Hyderabad         |
+| extracted_at          | current timestamp |
+
+Saves output:
+
+```
+data/staged/weather_cleaned.csv
+```
+
+Implementation: 
+
+---
+
+# 📥 **3. Load Step**
+
+### File: `Loadweather.py`
+
+Loads the cleaned CSV into the Supabase table:
+
+```
+weather_data
+```
+
+Table columns:
+
+```sql
+id BIGSERIAL PRIMARY KEY,
+time TIMESTAMP,
+temperature_c DOUBLE PRECISION,
+humidity_percent DOUBLE PRECISION,
+city TEXT,
+extracted_at TIMESTAMP,
+wind_speed_kmph DOUBLE PRECISION
+```
+
+This step:
+
+✔ Converts timestamps to string ISO format
+✔ Renames CSV fields to match DB columns
+✔ Inserts in batches of 20
+✔ Sleeps to avoid Supabase rate limiting
+
+Implementation: 
+
+---
+
+# 🗄 **Supabase Weather Table Schema**
+
+```sql
+CREATE TABLE weather_data(
+    id BIGSERIAL PRIMARY KEY,
+    time TIMESTAMP,
+    temperature_c DOUBLE PRECISION,
+    humidity_percent DOUBLE PRECISION,
+    city TEXT,
+    extracted_at TIMESTAMP
+);
+
+ALTER TABLE weather_data
+ADD COLUMN wind_speed_kmph DOUBLE PRECISION;
 ```
 
 ---
 
-## 🎯 Summary
+# 🚀 **How to Run the ETL**
 
-This ETL pipeline provides:
+### Step 1 — Extract
 
-* Automated ingestion of NASA APOD data
-* Normalized and clean datasets
-* Database-ready output for analytics
-* Reproducible and maintainable architecture
+```
+python Scripts/Extractweather.py
+```
 
-Perfect for learning ETL concepts, building dashboards, or powering a data portfolio project.
+### Step 2 — Transform
+
+```
+python Scripts/Tr_weather.py
+```
+
+### Step 3 — Load
+
+```
+python Scripts/Loadweather.py
+```
+
+All done! Your Supabase table will now contain up-to-date hourly weather data.
 
 ---
+
+# ⚠ Requirements
+
+Install dependencies:
+
+```
+pip install requests pandas supabase python-dotenv
+```
+
+---
+
+# 🎯 **Future Enhancements**
+
+* Automate ETL using cron / Windows Task Scheduler
+* Store city dynamically
+* Log processing steps
+* Add error-handling and retry logic
+* Support multiple cities
+
+---
+
+
