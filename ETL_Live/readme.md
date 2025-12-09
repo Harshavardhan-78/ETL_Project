@@ -1,5 +1,3 @@
-Below is a clean **README.md** you can use for your ETL Weather Pipeline.
-It is fully aligned with your files:
 
 
 # **Weather ETL Pipeline using Open-Meteo API & Supabase**
